@@ -69,12 +69,12 @@ function createGallery(galleryEl, items, selectCallback) {
   });
 }
 
+// **CHANGE: Load weights from local /weights/ directory in your deploy**
 Promise.all([
-  faceapi.nets.tinyFaceDetector.loadFromUri('https://unpkg.com/face-api.js/weights/'),
-  faceapi.nets.faceLandmark68Net.loadFromUri('https://unpkg.com/face-api.js/weights/')
+  faceapi.nets.tinyFaceDetector.loadFromUri('/weights/'),
+  faceapi.nets.faceLandmark68Net.loadFromUri('/weights/')
 ]).then(() => {
 
-  // Initialize galleries and selection highlight after window load
   window.addEventListener('load', () => {
     createGallery(shirtGallery, shirts, (style) => {
       shirtStyle.value = style;
@@ -86,7 +86,6 @@ Promise.all([
       redrawAttire();
     });
 
-    // Highlight selected on initial load
     setTimeout(() => {
       Array.from(shirtGallery.children).forEach(child => {
         if(child.alt.toLowerCase() === shirtStyle.value) child.style.border = '2px solid #2f80ed';
@@ -119,10 +118,8 @@ Promise.all([
 
   exportSingle.addEventListener('click', ()=>exportPNG('single'));
   exportSheet.addEventListener('click', ()=>exportPNG('sheet'));
-
 });
 
-// DRAWING AND EVENT HANDLING FUNCTIONS:
 
 function drawFit(bitmap){
   const w = bitmap.width, h = bitmap.height;
