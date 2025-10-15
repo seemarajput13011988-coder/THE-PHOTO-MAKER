@@ -24,7 +24,6 @@ let imgBitmap = null;
 let detection = null;
 let attireState = {enabled:false, shirt:{style:'oxford', color:'#ffffff'}, tie:{style:'none', color:'#0b2a6f'}};
 
-// Shirt and tie gallery data
 const shirts = [
   {name: 'Oxford', file: 'shirt_oxford.png', style: 'oxford'},
   {name: 'Point Collar', file: 'shirt_point.png', style: 'point'},
@@ -70,39 +69,60 @@ function createGallery(galleryEl, items, selectCallback) {
   });
 }
 
-// Initialize galleries and selection highlight after window load
-window.addEventListener('load', () => {
-  createGallery(shirtGallery, shirts, (style) => {
-    shirtStyle.value = style;
-    redrawAttire();
+Promise.all([
+  faceapi.nets.tinyFaceDetector.loadFromUri('https://unpkg.com/face-api.js/weights/'),
+  faceapi.nets.faceLandmark68Net.loadFromUri('https://unpkg.com/face-api.js/weights/')
+]).then(() => {
+
+  // Initialize galleries and selection highlight after window load
+  window.addEventListener('load', () => {
+    createGallery(shirtGallery, shirts, (style) => {
+      shirtStyle.value = style;
+      redrawAttire();
+    });
+
+    createGallery(tieGallery, ties, (style) => {
+      tieStyle.value = style;
+      redrawAttire();
+    });
+
+    // Highlight selected on initial load
+    setTimeout(() => {
+      Array.from(shirtGallery.children).forEach(child => {
+        if(child.alt.toLowerCase() === shirtStyle.value) child.style.border = '2px solid #2f80ed';
+      });
+      Array.from(tieGallery.children).forEach(child => {
+        if(child.alt.toLowerCase() === tieStyle.value) child.style.border = '2px solid #2f80ed';
+      });
+    }, 100);
   });
 
-  createGallery(tieGallery, ties, (style) => {
-    tieStyle.value = style;
-    redrawAttire();
+  fileEl.addEventListener('change', async (e)=>{
+    const file = e.target.files?.[0];
+    if(!file) return;
+    imgBitmap = await createImageBitmap(file);
+    drawFit(imgBitmap);
+    [autocropBtn,bgBtn,applyAttire,clearAttire,exportSingle,exportSheet].forEach(b=>b.disabled=false);
   });
 
-  // Highlight selected on initial load
-  setTimeout(() => {
-    Array.from(shirtGallery.children).forEach(child => {
-      if(child.alt.toLowerCase() === shirtStyle.value) child.style.border = '2px solid #2f80ed';
-    });
-    Array.from(tieGallery.children).forEach(child => {
-      if(child.alt.toLowerCase() === tieStyle.value) child.style.border = '2px solid #2f80ed';
-    });
-  }, 100);
+  autocropBtn.addEventListener('click', autoDetectAndCrop);
+  bgBtn.addEventListener('click', setWhiteBackground);
+  enableAttire.addEventListener('change', (e)=>{ attireState.enabled = e.target.checked; redrawAttire(); });
+  shirtStyle.addEventListener('change', (e)=>{ attireState.shirt.style = e.target.value; redrawAttire(); });
+  shirtColor.addEventListener('input', (e)=>{ attireState.shirt.color = e.target.value; redrawAttire(); });
+  tieStyle.addEventListener('change', (e)=>{ attireState.tie.style = e.target.value; redrawAttire(); });
+  tieColor.addEventListener('input', (e)=>{ attireState.tie.color = e.target.value; redrawAttire(); });
+  applyAttire.addEventListener('click', redrawAttire);
+  clearAttire.addEventListener('click', ()=>{
+    attireState.enabled=false; enableAttire.checked=false; drawFit(imgBitmap);
+  });
+
+  exportSingle.addEventListener('click', ()=>exportPNG('single'));
+  exportSheet.addEventListener('click', ()=>exportPNG('sheet'));
+
 });
 
-await faceapi.nets.tinyFaceDetector.loadFromUri('https://unpkg.com/face-api.js/weights/');
-await faceapi.nets.faceLandmark68Net.loadFromUri('https://unpkg.com/face-api.js/weights/');
-
-fileEl.addEventListener('change', async (e)=>{
-  const file = e.target.files?.[0];
-  if(!file) return;
-  imgBitmap = await createImageBitmap(file);
-  drawFit(imgBitmap);
-  [autocropBtn,bgBtn,applyAttire,clearAttire,exportSingle,exportSheet].forEach(b=>b.disabled=false);
-});
+// DRAWING AND EVENT HANDLING FUNCTIONS:
 
 function drawFit(bitmap){
   const w = bitmap.width, h = bitmap.height;
@@ -249,18 +269,6 @@ function shade(hex, amt){
   return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
 }
 
-autocropBtn.addEventListener('click', autoDetectAndCrop);
-bgBtn.addEventListener('click', setWhiteBackground);
-enableAttire.addEventListener('change', (e)=>{ attireState.enabled = e.target.checked; redrawAttire(); });
-shirtStyle.addEventListener('change', (e)=>{ attireState.shirt.style = e.target.value; redrawAttire(); });
-shirtColor.addEventListener('input', (e)=>{ attireState.shirt.color = e.target.value; redrawAttire(); });
-tieStyle.addEventListener('change', (e)=>{ attireState.tie.style = e.target.value; redrawAttire(); });
-tieColor.addEventListener('input', (e)=>{ attireState.tie.color = e.target.value; redrawAttire(); });
-applyAttire.addEventListener('click', redrawAttire);
-clearAttire.addEventListener('click', ()=>{
-  attireState.enabled=false; enableAttire.checked=false; drawFit(imgBitmap);
-});
-
 function exportPNG(target='single'){
   const dpi = 300;
   const p = presetEl.value;
@@ -309,6 +317,3 @@ function exportPNG(target='single'){
     link.click();
   }
 }
-
-exportSingle.addEventListener('click', ()=>exportPNG('single'));
-exportSheet.addEventListener('click', ()=>exportPNG('sheet'));
